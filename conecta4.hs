@@ -8,7 +8,7 @@ data Jugador = X | O
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 titulo :: Maybe Jugador -> Char
-titulo Nada  = ' '
+titulo Nothing  = ' '
 titulo (Just X) = 'X'
 titulo (Just O) = 'O'
 
@@ -46,7 +46,7 @@ parteSuperior columna tablero@(Tablero filas _ _) = go 0
   where
     go fila
         | fila > filas                      = filas
-        | get fila columna tablero /= Nada = fila
+        | get fila columna tablero /= Nothing = fila
         | otherwise                       = go (fila + 1)
 
 connections :: Int -> Tablero -> [[(Int, Int)]]
@@ -71,10 +71,10 @@ connections tamano (Tablero filas columnas _) =
 
 cuenta :: [Maybe Jugador] -> Maybe (Jugador, Int)
 cuenta espacios = case catMaybes espacios of
-    []                  -> Nada
+    []                  -> Nothing
     (x : xs)
         | all (== x) xs -> Just (x, length xs + 1)
-        | otherwise     -> Nada
+        | otherwise     -> Nothing
 
 frecuencia :: Int -> Tablero -> Jugador -> Int -> Int
 frecuencia tamano tablero =
@@ -85,7 +85,7 @@ frecuencia tamano tablero =
         let espacios = map (\(r, c) -> get r c tablero) connection
         in case cuenta espacios of
             Just c  -> M.insertWith' (+) c 1 freqs
-            Nada -> freqs
+            Nothing -> freqs
 
 ganador :: Int -> Tablero -> Maybe Jugador
 ganador tamano tablero = listToMaybe
@@ -127,7 +127,7 @@ main = go (cycle players) $ tableroVacio 7 9
         putStr $ show tablero
         case ganador 4 tablero of
             Just w  -> putStrLn $ "Jugador " ++ show w ++ " ganó!"
-            Nada -> do
+            Nothing -> do
                 putStrLn $ "Jugador " ++ show p ++ " es su turno!"
                 n <- pf 4 tablero
                 go ps $ push n p tablero
