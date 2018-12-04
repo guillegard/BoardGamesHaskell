@@ -4,75 +4,81 @@ import qualified Data.Map   as M
 import           Data.Maybe (catMaybes, fromMaybe, listToMaybe)
 import           Data.Ord   (comparing)
 
+--Definimos a los posibles jugadores
 data Jugador = X | O
     deriving (Bounded, Enum, Eq, Ord, Show)
 
+--para cada espacio puede tener nada, X, O
 muestraEspacio :: Maybe Jugador -> Char
 muestraEspacio Nothing  = ' '
 muestraEspacio (Just X) = 'X'
 muestraEspacio (Just O) = 'O'
 
-data Field = Field
-    { fieldRows    :: Int
-    , fieldColumns :: Int
-    , fieldTiles   :: Map (Int, Int) Jugador
+-- definicion del tablero
+data Tablero = Tablero
+    { filasTablero    :: Int
+    , columnasTabler :: Int
+    , cuadranteTablero   :: Map (Int, Int) Jugador
     }
 
-instance Show Field where
-    show field@(Field filas pCol _) = unlines $
-        [ concat [show i ++ " "| i <- [0 .. pCol - 1]]
+--Imprime el tablero
+instance Show Tablero where
+    show tablero@(Tablero filas valorPorColumna _) = unlines $
+        [ concat [show i | i <- [0 .. valorPorColumna - 1]]
         ] ++
-        [ [muestraEspacio (get fila columna field) | columna <- [0 .. pCol - 1]]
+        [ [muestraEspacio (encontrar fila columna tablero) | columna <- [0 .. valorPorColumna - 1]]
         | fila <- [0 .. filas - 1]
         ]
 
-campoVacio :: Int -> Int -> Field
-campoVacio filas pCol = Field filas pCol M.empty
+--Revisa si el campo es vacio
+campoVacio :: Int -> Int -> Tablero
+campoVacio filas valorPorColumna = Tablero filas valorPorColumna M.empty
 
+--encientra cierto lugar en el tablero
+encontrar :: Int -> Int -> Tablero -> Maybe Jugador
+encontrar fila columna = M.lookup (fila, columna) . cuadranteTablero
 
-get :: Int -> Int -> Field -> Maybe Jugador
-get fila columna = M.lookup (fila, columna) . fieldTiles
-
-
-push :: Int -> Jugador -> Field -> Field
-push columna tile field@(Field filas pCol tiles)
-    | columna < 0 || columna >= pCol = field
-    | fila < 0                         = field
+--Agrega una ficha en una columna
+agegar :: Int -> Jugador -> Tablero -> Tablero
+agegar columna tile tablero@(Tablero filas valorPorColumna tiles)
+    | columna < 0 || columna >= valorPorColumna = tablero
+    | fila < 0                         = tablero
     | otherwise                       =
-        Field filas pCol $ M.insert (fila, columna) tile tiles
+        Tablero filas valorPorColumna $ M.insert (fila, columna) tile tiles
   where
-    fila = parteSuperior columna field - 1
+    fila = parteSuperior columna tablero - 1
 
-parteSuperior :: Int -> Field -> Int
-parteSuperior columna field@(Field filas _ _) = go 0
+--Revisa la parte superior del tablero para ver si esta lleno
+parteSuperior :: Int -> Tablero -> Int
+parteSuperior columna tablero@(Tablero filas _ _) = ir 0
   where
-    go fila
+    ir fila
         | fila > filas                      = filas
-        | get fila columna field /= Nothing = fila
-        | otherwise                       = go (fila + 1)
+        | encontrar fila columna tablero /= Nothing = fila
+        | otherwise                       = ir (fila + 1)
 
-conexiones :: Int -> Field -> [[(Int, Int)]]
-conexiones tamano (Field filas pCol _) =
-
+--Revisa las concurrencias de fichasen diversas direcciones
+conexiones :: Int -> Tablero -> [[(Int, Int)]]
+conexiones tamano (Tablero filas valorPorColumna _) =
     [ [(r, c + i) | i <- is]
-    | r <- [0 .. filas - 1], c <- [0 .. pCol - tamano]
+    | r <- [0 .. filas - 1], c <- [0 .. valorPorColumna - tamano]
     ] ++
 
     [ [(r + i, c) | i <- is]
-    | r <- [0 .. filas - tamano], c <- [0 .. pCol - 1]
+    | r <- [0 .. filas - tamano], c <- [0 .. valorPorColumna - 1]
     ] ++
 
     [ [(r + i, c + i) | i <- is]
-    | r <- [0 .. filas - tamano], c <- [0 .. pCol - tamano]
+    | r <- [0 .. filas - tamano], c <- [0 .. valorPorColumna - tamano]
     ] ++
 
     [ [(r + i, c - i) | i <- is]
-    | r <- [0 .. filas - tamano], c <- [tamano - 1 .. pCol - 1]
+    | r <- [0 .. filas - tamano], c <- [tamano - 1 .. valorPorColumna - 1]
     ]
   where
     is = [0 .. tamano - 1]
 
-
+--Cuebta el numero de concurrencias
 cuenta :: [Maybe Jugador] -> Maybe (Jugador, Int)
 cuenta tiles = case catMaybes tiles of
     []                  -> Nothing
@@ -81,59 +87,63 @@ cuenta tiles = case catMaybes tiles of
         | otherwise     -> Nothing
 
 
-frecuencia :: Int -> Field -> Jugador -> Int -> Int
-frecuencia tamano field =
-    let map' = foldl' step M.empty $ conexiones tamano field
+--Obitnene las concurrencias de concexiones
+frecuencia :: Int -> Tablero -> Jugador -> Int -> Int
+frecuencia tamano tablero =
+    let map' = foldl' step M.empty $ conexiones tamano tablero
     in \p l -> fromMaybe 0 $ M.lookup (p, l) map'
   where
     step freqs connection =
-        let tiles = map (\(r, c) -> get r c field) connection
+        let tiles = map (\(r, c) -> encontrar r c tablero) connection
         in case cuenta tiles of
             Just c  -> M.insertWith' (+) c 1 freqs
             Nothing -> freqs
 
-ganador :: Int -> Field -> Maybe Jugador
-ganador tamano field = listToMaybe
+--Identifica si algun jugador gano
+ganador :: Int -> Tablero -> Maybe Jugador
+ganador tamano tablero = listToMaybe
     [ p
     | p <- [minBound .. maxBound]
     , frecuencia' p tamano > 0
     ]
   where
-    frecuencia' = frecuencia tamano field
+    frecuencia' = frecuencia tamano tablero
 
-marcador :: Int -> Field -> Jugador -> Int
-marcador tamano field me = sum
-    [ sign * marcador' * frecuencia' p l
+--Cuenta el nmarcado actual
+marcador :: Int -> Tablero -> Jugador -> Int
+marcador tamano tablero me = sum
+    [ actual * marcador' * frecuencia' p l
     | p <- [minBound .. maxBound]
     , l <- [1 .. tamano]
-    , let sign   = if p == me then 1 else -1
+    , let actual   = if p == me then 1 else -1
     , let marcador' = l ^ (2 * l)
     ]
   where
-    frecuencia' = frecuencia tamano field
+    frecuencia' = frecuencia tamano tablero
 
-
-ai :: Int -> Field -> Jugador -> Int
-ai tamano field me = fst $ maximumBy (comparing snd)
-    [ (col, marcador tamano (push col me field) me)
-    | col <- [0 .. fieldColumns field - 1]
+--Decide en donde poner una ficha para la computadora
+ai :: Int -> Tablero -> Jugador -> Int
+ai tamano tablero me = fst $ maximumBy (comparing snd)
+    [ (col, marcador tamano (agegar col me tablero) me)
+    | col <- [0 .. columnasTabler tablero - 1]
     ]
 
+--Controlador principal, el usuario jugara con las fichas "X"
 main :: IO ()
-main = go (cycle jugadores) $ campoVacio 7 9
+main = ir (cycle jugadores) $ campoVacio 7 9
   where
-    jugadores :: [(Jugador, Int -> Field -> IO Int)]
+    jugadores :: [(Jugador, Int -> Tablero -> IO Int)]
     jugadores =
         [ (X, \_ _ -> readLn)
-        , (O, \tamano field -> return $ ai tamano field O)
+        , (O, \tamano tablero -> return $ ai tamano tablero O)
         ]
 
-    go []             _     = return ()
-    go ((p, pf) : ps) field = do
-        putStr $ show field
-        case ganador 4 field of
+    ir []             _     = return ()
+    ir ((p, pf) : ps) tablero = do
+        putStr $ show tablero
+        case ganador 4 tablero of
             Just w  -> putStrLn $ "Jugador " ++ show w ++ " gana!"
             Nothing -> do
-                putStrLn $ "Jugador " ++ show p ++ " es su turno!"
-                n <- pf 4 field
-                go ps $ push n p field
+                putStrLn $ "Jugador " ++ show p ++ " es su turno, selecciona una columna para poner una ficha"
+                n <- pf 4 tablero
+                ir ps $ agegar n p tablero

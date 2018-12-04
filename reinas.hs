@@ -4,16 +4,16 @@ import Data.List
 -- Dado n numero de reinas, regresa las soluciones posibles para un tablero de n * n
 
 reinas :: Int -> [[Int]]
-reinas n = map fst $ foldM siguienteReina ([],[1..n]) [1..n]  where
-  siguienteReina (y,d) _ = [(x:y, delete x d) | x <- d, verifica x]  where
+reinas casilla = map fst $ foldM siguienteReina ([],[1..casilla]) [1..casilla]  where
+  siguienteReina (caslla1,caslla2) _ = [(reina:caslla1, delete reina caslla2) | reina <- caslla2, verifica reina]  where
     -- Verifica que no hay reinas
-    verifica reina = and [reina /= c + n && reina /= c - n | (n,c) <- zip [1..] y]
+    verifica reina = and [reina /= x + y && reina /= x - y | (y,x) <- zip [1..] caslla1]
 
 -- Imprime el tablero resuelto
-imprimirTableros y = do
-     let n = length y
-     mapM_ (\x -> putStrLn [if z == x then 'R' else '#' | z <- [1..n]]) y
+imprimirTableros tablero = do
+     let longitud = length tablero
+     mapM_ (\reina -> putStrLn [if casilla == reina then 'R' else '+' | casilla <- [1..longitud]]) tablero
      putStrLn ""
 
 -- Imprime las soluciones para n reinas
-main n = mapM_ imprimirTableros $ reinas n
+main numeroDeReinas = mapM_ imprimirTableros $ reinas numeroDeReinas

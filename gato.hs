@@ -8,8 +8,8 @@ import System.IO
 -- Definimos una variables para la busqueda. La definimos en 5 por defecto.
 -- Esto define la dificultad de la ia, a mayor numero mejor sera pero mas lento.
 
-busquedaMaxima :: Int
-busquedaMaxima = 5
+dificultad :: Int
+dificultad = 5
 
 -----------------------------------------------------------------------------------------
 -- LOGICA DEL JUGO
@@ -141,7 +141,7 @@ encuentra (N (e,_) ts) =
  
 encuentraMejorPosicion :: T -> T
 encuentraMejorPosicion = 
-    encuentra . maxEvaluaciones . podarA busquedaMaxima . generacionDeA
+    encuentra . maxEvaluaciones . podarA dificultad . generacionDeA
  
 ------------------------------------------------------------------------------
 --Print del tablero
