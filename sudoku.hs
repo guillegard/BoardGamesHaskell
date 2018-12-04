@@ -1,4 +1,4 @@
-#!/usr/bin/env runhaskell
+
 
 -- Note: For a slight improvement in performance, import the non-portable
 -- Data.Array.Unboxed module instead of Data.Array, and change the Board
