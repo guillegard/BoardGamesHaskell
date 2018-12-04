@@ -95,7 +95,7 @@ frecuencia tamano field =
 ganador :: Int -> Field -> Maybe Jugador
 ganador tamano field = listToMaybe
     [ p
-    | p <- [minimo .. maximo]
+    | p <- [minBound .. maxBound]
     , frecuencia' p tamano > 0
     ]
   where
@@ -104,7 +104,7 @@ ganador tamano field = listToMaybe
 marcador :: Int -> Field -> Jugador -> Int
 marcador tamano field me = sum
     [ sign * marcador' * frecuencia' p l
-    | p <- [minimo .. maximo]
+    | p <- [minBound .. maxBound]
     , l <- [1 .. tamano]
     , let sign   = if p == me then 1 else -1
     , let marcador' = l ^ (2 * l)
