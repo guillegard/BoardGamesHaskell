@@ -51,22 +51,18 @@ parteSuperior columna tablero@(Tablero filas _ _) = go 0
 
 connections :: Int -> Tablero -> [[(Int, Int)]]
 connections tamano (Tablero filas columnas _) =
-    -- Horizontal
     [ [(r, c + i) | i <- is]
     | r <- [0 .. filas - 1], c <- [0 .. columnas - tamano]
     ] ++
 
-    -- Vertical
     [ [(r + i, c) | i <- is]
     | r <- [0 .. filas - tamano], c <- [0 .. columnas - 1]
     ] ++
 
-    -- Diagonal: top left to bottom right
     [ [(r + i, c + i) | i <- is]
     | r <- [0 .. filas - tamano], c <- [0 .. columnas - tamano]
     ] ++
 
-    -- Diagonal: bottom left to top right
     [ [(r + i, c - i) | i <- is]
     | r <- [0 .. filas - tamano], c <- [tamano - 1 .. columnas - 1]
     ]
