@@ -1,169 +1,165 @@
---------------------------------------------------------------------------------
 import           Data.List  (foldl', maximumBy)
 import           Data.Map   (Map)
 import qualified Data.Map   as M
 import           Data.Maybe (catMaybes, fromMaybe, listToMaybe)
 import           Data.Ord   (comparing)
 
-
---------------------------------------------------------------------------------
-data Player = X | O
+data Jugador = X | O
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 
 --------------------------------------------------------------------------------
-showTile :: Maybe Player -> Char
-showTile Nothing  = ' '
-showTile (Just X) = 'X'
-showTile (Just O) = 'O'
+titulo :: Maybe Jugador -> Char
+titulo Nada  = ' '
+titulo (Just X) = 'X'
+titulo (Just O) = 'O'
 
 
 --------------------------------------------------------------------------------
-data Field = Field
-    { fieldRows    :: Int
-    , fieldColumns :: Int
-    , fieldTiles   :: Map (Int, Int) Player
+data Tablero = Tablero
+    { filasTablero    :: Int
+    , columnasTablero :: Int
+    , espaciosTablero   :: Map (Int, Int) Jugador
     }
 
 
 --------------------------------------------------------------------------------
-instance Show Field where
-    show field@(Field rows columns _) = unlines $
-        [ concat [show i ++ " "| i <- [0 .. columns - 1]]
-        ] ++ 
-        [ [showTile (get row column field) | column <- [0 .. columns - 1]]
-        | row <- [0 .. rows - 1]
+instance Show Tablero where
+    show tablero@(Tablero filas columnas _) = unlines $
+        [ concat [show i ++ " "| i <- [0 .. columnas - 1]]
+        ] ++
+        [ [titulo (get fila column tablero) | column <- [0 .. columnas - 1]]
+        | fila <- [0 .. filas - 1]
         ]
 
 
 --------------------------------------------------------------------------------
-emptyField :: Int -> Int -> Field
-emptyField rows columns = Field rows columns M.empty
+tableroVacio :: Int -> Int -> Tablero
+tableroVacio filas columnas = Tablero filas columnas M.empty
 
 
 --------------------------------------------------------------------------------
-get :: Int -> Int -> Field -> Maybe Player
-get row column = M.lookup (row, column) . fieldTiles
+get :: Int -> Int -> Tablero -> Maybe Jugador
+get fila column = M.lookup (fila, columna) . espaciosTablero
 
 
 --------------------------------------------------------------------------------
-push :: Int -> Player -> Field -> Field
-push column tile field@(Field rows columns tiles)
-    | column < 0 || column >= columns = field
-    | row < 0                         = field
+push :: Int -> Jugador -> Tablero -> Tablero
+push columna tile tablero@(Tablero filas columnas espacios)
+    | columna < 0 || columna >= columnas = tablero
+    | fila < 0                         = tablero
     | otherwise                       =
-        Field rows columns $ M.insert (row, column) tile tiles
+        Tablero filas columnas $ M.insert (fila, columna) tile espacios
   where
-    row = topOfStack column field - 1
+    fila = parteSuperior columna tablero - 1
 
 
 --------------------------------------------------------------------------------
-topOfStack :: Int -> Field -> Int
-topOfStack column field@(Field rows _ _) = go 0
+parteSuperior :: Int -> Tablero -> Int
+parteSuperior columna tablero@(Tablero filas _ _) = go 0
   where
-    go row
-        | row > rows                      = rows
-        | get row column field /= Nothing = row
-        | otherwise                       = go (row + 1)
+    go fila
+        | fila > filas                      = filas
+        | get fila columna tablero /= Nada = fila
+        | otherwise                       = go (fila + 1)
 
 
 --------------------------------------------------------------------------------
-connections :: Int -> Field -> [[(Int, Int)]]
-connections len (Field rows columns _) =
+connections :: Int -> Tablero -> [[(Int, Int)]]
+connections tamano (Tablero filas columnas _) =
     -- Horizontal
     [ [(r, c + i) | i <- is]
-    | r <- [0 .. rows - 1], c <- [0 .. columns - len]
+    | r <- [0 .. filas - 1], c <- [0 .. columnas - tamano]
     ] ++
 
     -- Vertical
     [ [(r + i, c) | i <- is]
-    | r <- [0 .. rows - len], c <- [0 .. columns - 1]
+    | r <- [0 .. filas - tamano], c <- [0 .. columnas - 1]
     ] ++
 
     -- Diagonal: top left to bottom right
     [ [(r + i, c + i) | i <- is]
-    | r <- [0 .. rows - len], c <- [0 .. columns - len]
+    | r <- [0 .. filas - tamano], c <- [0 .. columnas - tamano]
     ] ++
 
     -- Diagonal: bottom left to top right
     [ [(r + i, c - i) | i <- is]
-    | r <- [0 .. rows - len], c <- [len - 1 .. columns - 1]
+    | r <- [0 .. filas - tamano], c <- [tamano - 1 .. columnas - 1]
     ]
   where
-    is = [0 .. len - 1]
+    is = [0 .. tamano - 1]
 
 
 --------------------------------------------------------------------------------
-count :: [Maybe Player] -> Maybe (Player, Int)
-count tiles = case catMaybes tiles of
-    []                  -> Nothing
+cuenta :: [Maybe Jugador] -> Maybe (Jugador, Int)
+cuenta espacios = case catMaybes espacios of
+    []                  -> Nada
     (x : xs)
         | all (== x) xs -> Just (x, length xs + 1)
-        | otherwise     -> Nothing
+        | otherwise     -> Nada
 
 
 --------------------------------------------------------------------------------
-frequencies :: Int -> Field -> Player -> Int -> Int
-frequencies len field =
-    let map' = foldl' step M.empty $ connections len field
+frecuencia :: Int -> Tablero -> Jugador -> Int -> Int
+frecuencia tamano tablero =
+    let map' = foldl' step M.empty $ connections tamano tablero
     in \p l -> fromMaybe 0 $ M.lookup (p, l) map'
   where
     step freqs connection =
-        let tiles = map (\(r, c) -> get r c field) connection
-        in case count tiles of
+        let espacios = map (\(r, c) -> get r c tablero) connection
+        in case cuenta espacios of
             Just c  -> M.insertWith' (+) c 1 freqs
-            Nothing -> freqs
+            Nada -> freqs
 
 
 --------------------------------------------------------------------------------
-winner :: Int -> Field -> Maybe Player
-winner len field = listToMaybe
+ganador :: Int -> Tablero -> Maybe Jugador
+ganador tamano tablero = listToMaybe
     [ p
-    | p <- [minBound .. maxBound]
-    , frequencies' p len > 0
+    | p <- [masBajo .. tope]
+    , frecuencia' p tamano > 0
     ]
   where
-    frequencies' = frequencies len field
+    frecuencia' = frecuencia tamano tablero
 
 
 --------------------------------------------------------------------------------
-score :: Int -> Field -> Player -> Int
-score len field me = sum
-    [ sign * score' * frequencies' p l
-    | p <- [minBound .. maxBound]
-    , l <- [1 .. len]
+punto :: Int -> Tablero -> Jugador -> Int
+punto tamano tablero me = sum
+    [ sign * punto' * frecuencia' p l
+    | p <- [masBajo .. tope]
+    , l <- [1 .. tamano]
     , let sign   = if p == me then 1 else -1
-    , let score' = l ^ (2 * l)
+    , let punto' = l ^ (2 * l)
     ]
   where
-    frequencies' = frequencies len field
+    frecuencia' = frecuencia tamano tablero
 
 
 --------------------------------------------------------------------------------
-ai :: Int -> Field -> Player -> Int
-ai len field me = fst $ maximumBy (comparing snd)
-    [ (col, score len (push col me field) me)
-    | col <- [0 .. fieldColumns field - 1]
+ai :: Int -> Tablero -> Jugador -> Int
+ai tamano tablero me = fst $ maximumBy (comparing snd)
+    [ (col, punto tamano (push col me tablero) me)
+    | col <- [0 .. columnasTablero tablero - 1]
     ]
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
-main = go (cycle players) $ emptyField 7 9
+main = go (cycle players) $ tableroVacio 7 9
   where
-    players :: [(Player, Int -> Field -> IO Int)]
+    players :: [(Jugador, Int -> Tablero -> IO Int)]
     players =
         [ (X, \_ _ -> readLn)
-        , (O, \len field -> return $ ai len field O)
+        , (O, \tamano tablero -> return $ ai tamano tablero O)
         ]
 
     go []             _     = return ()
-    go ((p, pf) : ps) field = do
-        putStr $ show field
-        case winner 4 field of
-            Just w  -> putStrLn $ "Player " ++ show w ++ " wins!"
-            Nothing -> do
-                putStrLn $ "Player " ++ show p ++ " takes a turn!"
-                n <- pf 4 field
-                go ps $ push n p field
-
+    go ((p, pf) : ps) tablero = do
+        putStr $ show tablero
+        case ganador 4 tablero of
+            Just w  -> putStrLn $ "Jugador " ++ show w ++ " ganó!"
+            Nada -> do
+                putStrLn $ "Jugador " ++ show p ++ " es su turno!"
+                n <- pf 4 tablero
+                go ps $ push n p tablero
