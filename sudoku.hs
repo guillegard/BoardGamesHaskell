@@ -1,32 +1,21 @@
-
-
--- Note: For a slight improvement in performance, import the non-portable
--- Data.Array.Unboxed module instead of Data.Array, and change the Board
--- type below to use "UArray" instead of "Array".
 import Data.Array
 
--- Solve the example puzzle specified below
--- TODO: read puzzle from input
 main = do
-    let solution = solve puzzleBoard
-    printBoard solution
+    let solución = resuelve tableroSudoku
+    printTablero solución
 
--- The marks on the board are represented by Ints in the range 0..9, where 0 represents "empty".
-type Mark = Int
+type Marcado = Int
 
--- A square is identified by a (row, column) pair
-type Location = (Int, Int)
+type Posicion = (Int, Int)
 
--- A sudoku board is a 9x9 matrix of marks
-type Board = Array Location Mark
+type Tablero = Array Posicion Marcado
 
--- The sudoku board to be solved
-puzzleBoard :: Board
-puzzleBoard = array ((0, 0), (8, 8)) $ puzzleAssocs examplePuzzle
+tableroSudoku :: Tablero
+tableroSudoku = array ((0, 0), (8, 8)) $ verTablero ejemplo
 
--- Example puzzle from http://en.wikipedia.org/wiki/Sudoku
-examplePuzzle :: [[Mark]]
-examplePuzzle = [[5, 3, 0,  0, 7, 0,  0, 0, 0],
+-- Ejemplo de como escribir el sudoku
+ejemplo :: [[Marcado]]
+ejemplo = [[5, 3, 0,  0, 7, 0,  0, 0, 0],
                  [6, 0, 0,  1, 9, 5,  0, 0, 0],
                  [0, 9, 8,  0, 0, 0,  0, 6, 0],
 
@@ -38,76 +27,58 @@ examplePuzzle = [[5, 3, 0,  0, 7, 0,  0, 0, 0],
                  [0, 0, 0,  4, 1, 9,  0, 0, 5],
                  [0, 0, 0,  0, 8, 0,  0, 7, 0]]
 
--- Return first solution, or Nothing if no solutions found
-solve :: Board -> Maybe Board
-solve = headOrNothing . solutions
+resuelve :: Tablero -> Maybe Tablero
+resuelve = encontrado . solucións
 
--- Return all solutions
-solutions :: Board -> [Board]
-solutions b = solutions' (emptyLocations b) b
+solucións :: Tablero -> [Tablero]
+solucións b = solucións' (emptyPosicions b) b
   where
-    -- Given list of empty locations on a board, pick an empty location,
-    -- determine which marks can be put in that location, and then
-    -- recursively find all solutions for that set of marks.
-    solutions' :: [Location] -> Board -> [Board]
-    solutions' []     b = [b]
-    solutions' (x:xs) b = concatMap (solutions' xs) candidateBoards
+    solucións' :: [Posicion] -> Tablero -> [Tablero]
+    solucións' []     b = [b]
+    solucións' (x:xs) b = concatMap (solucións' xs) candidateTableros
       where
-        candidateMarks  = [m | m <- [1..9], isPossibleMark m x b]
-        candidateBoards = map (\m -> copyWithMark m x b) candidateMarks
+        candidateMarcados  = [m | m <- [1..9], isPossibleMarcado m x b]
+        candidateTableros = map (\m -> copyWithMarcado m x b) candidateMarcados
 
--- Return list of locations where value is 0
-emptyLocations :: Board -> [Location]
-emptyLocations b = [(row, col) | row <- [0..8], col <- [0..8], b ! (row, col) == 0]
+emptyPosicions :: Tablero -> [Posicion]
+emptyPosicions b = [(row, col) | row <- [0..8], col <- [0..8], b ! (row, col) == 0]
 
--- Determine whether the specified mark can be placed at specified position
-isPossibleMark :: Mark -> Location -> Board -> Bool
-isPossibleMark m (row, col) b = notInRow && notInColumn && notInBox
+isPossibleMarcado :: Marcado -> Posicion -> Tablero -> Bool
+isPossibleMarcado m (row, col) b = notInRow && notInColumn && notInBox
   where
-    notInRow    = notElem m $ b `marksInRow` row
-    notInColumn = notElem m $ b `marksInColumn` col
-    notInBox    = notElem m $ b `marksIn3x3Box` (row, col)
+    notInRow    = notElem m $ b `marcasEnFila` row
+    notInColumn = notElem m $ b `marcasEnColumna` col
+    notInBox    = notElem m $ b `marcasEnCuadrado` (row, col)
 
--- Return board with specified value in specified Location
-copyWithMark :: Mark -> Location -> Board -> Board
-copyWithMark mark (row, col) b = b // [((row, col), mark)]
+copyWithMarcado :: Marcado -> Posicion -> Tablero -> Tablero
+copyWithMarcado mark (row, col) b = b // [((row, col), mark)]
 
--- Return the marks in the specified row
-marksInRow :: Board -> Int -> [Mark]
-b `marksInRow` row = [b ! loc | loc <- range((row, 0), (row, 8))]
+marcasEnFila :: Tablero -> Int -> [Marcado]
+b `marcasEnFila` row = [b ! loc | loc <- range((row, 0), (row, 8))]
 
--- Return the marks in the specified column
-marksInColumn ::  Board -> Int -> [Mark]
-b `marksInColumn` col = [b ! loc | loc <- range((0, col), (8, col))]
+marcasEnColumna ::  Tablero -> Int -> [Marcado]
+b `marcasEnColumna` col = [b ! loc | loc <- range((0, col), (8, col))]
 
--- Return the marks in the 3x3 box that includes the specified Location
-marksIn3x3Box :: Board -> Location -> [Mark]
-b `marksIn3x3Box` (row, col) = [b ! loc | loc <- locations]
+marcasEnCuadrado :: Tablero -> Posicion -> [Marcado]
+b `marcasEnCuadrado` (row, col) = [b ! loc | loc <- locations]
   where
     row' = (row `div` 3) * 3
     col' = (col `div` 3) * 3
     locations = range((row', col'), (row' + 2, col' + 2))
 
--- Convert a list of rows of marks (as in examplePuzzle above) to a list of array associations
-puzzleAssocs :: [[Mark]] -> [(Location, Mark)]
-puzzleAssocs = concatMap rowAssocs . zip [0..8]
+verTablero :: [[Marcado]] -> [(Posicion, Marcado)]
+verTablero = concatMap verFila . zip [0..8]
   where
-    rowAssocs :: (Int, [Mark]) -> [((Int, Int), Mark)]
-    rowAssocs (row, marks) = colAssocs row $ zip [0..8] marks
+    verFila :: (Int, [Marcado]) -> [((Int, Int), Marcado)]
+    verFila (row, marks) = verCol row $ zip [0..8] marks
 
-    colAssocs :: Int -> [(Int, Mark)] -> [((Int, Int), Mark)]
-    colAssocs row cols = map (\(col, m) -> ((row, col), m)) cols
+    verCol :: Int -> [(Int, Marcado)] -> [((Int, Int), Marcado)]
+    verCol row cols = map (\(col, m) -> ((row, col), m)) cols
 
-headOrNothing :: [a] -> Maybe a
-headOrNothing []     = Nothing
-headOrNothing (x:xs) = Just x
+encontrado :: [a] -> Maybe a
+encontrado []     = Nothing
+encontrado (x:xs) = Just x
 
-printBoard :: Maybe Board -> IO ()
-printBoard Nothing  = putStrLn "No solution"
-printBoard (Just b) = mapM_ putStrLn [show $ b `marksInRow` row | row <- [0..8]]
-
-printSolution y = do
-     let n = length y
-     mapM_ (\x -> putStrLn [if z == x then 'Q' else '-' | z <- [1..n]]) y
-     putStrLn ""
-
+printTablero :: Maybe Tablero -> IO ()
+printTablero Nothing  = putStrLn "Sin solucion"
+printTablero (Just b) = mapM_ putStrLn [show $ b `marcasEnFila` row | row <- [0..8]]
