@@ -7,23 +7,17 @@ import           Data.Ord   (comparing)
 data Jugador = X | O
     deriving (Bounded, Enum, Eq, Ord, Show)
 
-
---------------------------------------------------------------------------------
 titulo :: Maybe Jugador -> Char
 titulo Nada  = ' '
 titulo (Just X) = 'X'
 titulo (Just O) = 'O'
 
-
---------------------------------------------------------------------------------
 data Tablero = Tablero
     { filasTablero    :: Int
     , columnasTablero :: Int
     , espaciosTablero   :: Map (Int, Int) Jugador
     }
 
-
---------------------------------------------------------------------------------
 instance Show Tablero where
     show tablero@(Tablero filas columnas _) = unlines $
         [ concat [show i ++ " "| i <- [0 .. columnas - 1]]
@@ -32,18 +26,12 @@ instance Show Tablero where
         | fila <- [0 .. filas - 1]
         ]
 
-
---------------------------------------------------------------------------------
 tableroVacio :: Int -> Int -> Tablero
 tableroVacio filas columnas = Tablero filas columnas M.empty
 
-
---------------------------------------------------------------------------------
 get :: Int -> Int -> Tablero -> Maybe Jugador
 get fila column = M.lookup (fila, columna) . espaciosTablero
 
-
---------------------------------------------------------------------------------
 push :: Int -> Jugador -> Tablero -> Tablero
 push columna tile tablero@(Tablero filas columnas espacios)
     | columna < 0 || columna >= columnas = tablero
@@ -53,8 +41,6 @@ push columna tile tablero@(Tablero filas columnas espacios)
   where
     fila = parteSuperior columna tablero - 1
 
-
---------------------------------------------------------------------------------
 parteSuperior :: Int -> Tablero -> Int
 parteSuperior columna tablero@(Tablero filas _ _) = go 0
   where
@@ -63,8 +49,6 @@ parteSuperior columna tablero@(Tablero filas _ _) = go 0
         | get fila columna tablero /= Nada = fila
         | otherwise                       = go (fila + 1)
 
-
---------------------------------------------------------------------------------
 connections :: Int -> Tablero -> [[(Int, Int)]]
 connections tamano (Tablero filas columnas _) =
     -- Horizontal
@@ -89,8 +73,6 @@ connections tamano (Tablero filas columnas _) =
   where
     is = [0 .. tamano - 1]
 
-
---------------------------------------------------------------------------------
 cuenta :: [Maybe Jugador] -> Maybe (Jugador, Int)
 cuenta espacios = case catMaybes espacios of
     []                  -> Nada
@@ -98,8 +80,6 @@ cuenta espacios = case catMaybes espacios of
         | all (== x) xs -> Just (x, length xs + 1)
         | otherwise     -> Nada
 
-
---------------------------------------------------------------------------------
 frecuencia :: Int -> Tablero -> Jugador -> Int -> Int
 frecuencia tamano tablero =
     let map' = foldl' step M.empty $ connections tamano tablero
@@ -111,8 +91,6 @@ frecuencia tamano tablero =
             Just c  -> M.insertWith' (+) c 1 freqs
             Nada -> freqs
 
-
---------------------------------------------------------------------------------
 ganador :: Int -> Tablero -> Maybe Jugador
 ganador tamano tablero = listToMaybe
     [ p
@@ -122,8 +100,6 @@ ganador tamano tablero = listToMaybe
   where
     frecuencia' = frecuencia tamano tablero
 
-
---------------------------------------------------------------------------------
 punto :: Int -> Tablero -> Jugador -> Int
 punto tamano tablero me = sum
     [ sign * punto' * frecuencia' p l
@@ -135,16 +111,12 @@ punto tamano tablero me = sum
   where
     frecuencia' = frecuencia tamano tablero
 
-
---------------------------------------------------------------------------------
 ai :: Int -> Tablero -> Jugador -> Int
 ai tamano tablero me = fst $ maximumBy (comparing snd)
     [ (col, punto tamano (push col me tablero) me)
     | col <- [0 .. columnasTablero tablero - 1]
     ]
 
-
---------------------------------------------------------------------------------
 main :: IO ()
 main = go (cycle players) $ tableroVacio 7 9
   where
