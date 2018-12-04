@@ -7,10 +7,10 @@ import           Data.Ord   (comparing)
 data Player = X | O
     deriving (Bounded, Enum, Eq, Ord, Show)
 
-showTile :: Maybe Player -> Char
-showTile Nothing  = ' '
-showTile (Just X) = 'X'
-showTile (Just O) = 'O'
+muestraEspacio :: Maybe Player -> Char
+muestraEspacio Nothing  = ' '
+muestraEspacio (Just X) = 'X'
+muestraEspacio (Just O) = 'O'
 
 data Field = Field
     { fieldRows    :: Int
@@ -22,12 +22,12 @@ instance Show Field where
     show field@(Field rows columns _) = unlines $
         [ concat [show i ++ " "| i <- [0 .. columns - 1]]
         ] ++
-        [ [showTile (get row column field) | column <- [0 .. columns - 1]]
+        [ [muestraEspacio (get row column field) | column <- [0 .. columns - 1]]
         | row <- [0 .. rows - 1]
         ]
 
-emptyField :: Int -> Int -> Field
-emptyField rows columns = Field rows columns M.empty
+campoVacio :: Int -> Int -> Field
+campoVacio rows columns = Field rows columns M.empty
 
 
 get :: Int -> Int -> Field -> Maybe Player
@@ -41,18 +41,18 @@ push column tile field@(Field rows columns tiles)
     | otherwise                       =
         Field rows columns $ M.insert (row, column) tile tiles
   where
-    row = topOfStack column field - 1
+    row = parteSuperior column field - 1
 
-topOfStack :: Int -> Field -> Int
-topOfStack column field@(Field rows _ _) = go 0
+parteSuperior :: Int -> Field -> Int
+parteSuperior column field@(Field rows _ _) = go 0
   where
     go row
         | row > rows                      = rows
         | get row column field /= Nothing = row
         | otherwise                       = go (row + 1)
 
-connections :: Int -> Field -> [[(Int, Int)]]
-connections len (Field rows columns _) =
+conexiones :: Int -> Field -> [[(Int, Int)]]
+conexiones len (Field rows columns _) =
 
     [ [(r, c + i) | i <- is]
     | r <- [0 .. rows - 1], c <- [0 .. columns - len]
@@ -73,57 +73,57 @@ connections len (Field rows columns _) =
     is = [0 .. len - 1]
 
 
-count :: [Maybe Player] -> Maybe (Player, Int)
-count tiles = case catMaybes tiles of
+cuenta :: [Maybe Player] -> Maybe (Player, Int)
+cuenta tiles = case catMaybes tiles of
     []                  -> Nothing
     (x : xs)
         | all (== x) xs -> Just (x, length xs + 1)
         | otherwise     -> Nothing
 
 
-frequencies :: Int -> Field -> Player -> Int -> Int
-frequencies len field =
-    let map' = foldl' step M.empty $ connections len field
+frecuencia :: Int -> Field -> Player -> Int -> Int
+frecuencia len field =
+    let map' = foldl' step M.empty $ conexiones len field
     in \p l -> fromMaybe 0 $ M.lookup (p, l) map'
   where
     step freqs connection =
         let tiles = map (\(r, c) -> get r c field) connection
-        in case count tiles of
+        in case cuenta tiles of
             Just c  -> M.insertWith' (+) c 1 freqs
             Nothing -> freqs
 
-winner :: Int -> Field -> Maybe Player
-winner len field = listToMaybe
+ganador :: Int -> Field -> Maybe Player
+ganador len field = listToMaybe
     [ p
     | p <- [minBound .. maxBound]
-    , frequencies' p len > 0
+    , frecuencia' p len > 0
     ]
   where
-    frequencies' = frequencies len field
+    frecuencia' = frecuencia len field
 
-score :: Int -> Field -> Player -> Int
-score len field me = sum
-    [ sign * score' * frequencies' p l
+marcador :: Int -> Field -> Player -> Int
+marcador len field me = sum
+    [ sign * marcador' * frecuencia' p l
     | p <- [minBound .. maxBound]
     , l <- [1 .. len]
     , let sign   = if p == me then 1 else -1
-    , let score' = l ^ (2 * l)
+    , let marcador' = l ^ (2 * l)
     ]
   where
-    frequencies' = frequencies len field
+    frecuencia' = frecuencia len field
 
 
 ai :: Int -> Field -> Player -> Int
 ai len field me = fst $ maximumBy (comparing snd)
-    [ (col, score len (push col me field) me)
+    [ (col, marcador len (push col me field) me)
     | col <- [0 .. fieldColumns field - 1]
     ]
 
 main :: IO ()
-main = go (cycle players) $ emptyField 7 9
+main = go (cycle jugadores) $ campoVacio 7 9
   where
-    players :: [(Player, Int -> Field -> IO Int)]
-    players =
+    jugadores :: [(Player, Int -> Field -> IO Int)]
+    jugadores =
         [ (X, \_ _ -> readLn)
         , (O, \len field -> return $ ai len field O)
         ]
@@ -131,9 +131,9 @@ main = go (cycle players) $ emptyField 7 9
     go []             _     = return ()
     go ((p, pf) : ps) field = do
         putStr $ show field
-        case winner 4 field of
-            Just w  -> putStrLn $ "Player " ++ show w ++ " wins!"
+        case ganador 4 field of
+            Just w  -> putStrLn $ "Jugador " ++ show w ++ " gana!"
             Nothing -> do
-                putStrLn $ "Player " ++ show p ++ " takes a turn!"
+                putStrLn $ "Jugador " ++ show p ++ " es su turno!"
                 n <- pf 4 field
                 go ps $ push n p field
